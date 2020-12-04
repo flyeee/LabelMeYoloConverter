@@ -1,18 +1,10 @@
 # -*- coding: utf-8 -*-
 
-'''
-LabelMe JSON format -> YOLO txt format
-save dataset (학습 자료) in dataset/ 
-output will be saved in result/
-JSON format will be moved to json_backup/
-
-Finally, please manually copy text file together with image into 1 folder. (Easier to maintain)
-마지막으로 txt파일이랑 이미지파일이랑 같은 폴더에 복사하세요 (관리하기 위한 쉬움)
-'''
-
 import os
 from os import walk, getcwd
 from PIL import Image
+import json
+
 
 def convert(size, box):
     dw = 1./size[0]
@@ -57,36 +49,26 @@ for json_name in json_name_list:
     txt_outpath = outpath + txt_name
     print("Output:" + txt_outpath)
     txt_outfile = open(txt_outpath, "a")
+    print(mypath+json_name)
+    """ Convert the data to YOLO format """
+    with open(mypath+json_name) as f:
+        img_data = json.load(f)
+        pt = img_data['shapes'][0]['points']
+        print(pt)
+        xmin = min(pt[0][0], pt[1][0])
+        xmax = max(pt[0][0],pt[1][0])
+        ymin = min(pt[0][1],pt[1][1])
+        ymax = max(pt[0][1],pt[1][1])
 
-    """ Convert the data to YOLO format """ 
-    lines = txt_file.read().split('\r\n')   #for ubuntu, use "\r\n" instead of "\n"
-    for idx, line in enumerate(lines):
-        if ("lineColor" in line):
-            break 	#skip reading after find lineColor
-        if ("label" in line):
-            x1 = float(lines[idx+5].rstrip(','))
-            y1 = float(lines[idx+6])
-            x2 = float(lines[idx+9].rstrip(','))
-            y2 = float(lines[idx+10])
-            cls = line[16:17]
+        w = img_data['imageWidth']
+        h = img_data['imageHeight']
 
-	    #in case when labelling, points are not in the right order
-	    xmin = min(x1,x2)
-	    xmax = max(x1,x2)
-     	    ymin = min(y1,y2)
-	    ymax = max(y1,y2)
-            img_path = str('%s/dataset/%s.jpg'%(wd, os.path.splitext(json_name)[0]))
+        print(w, h)
+        print(xmin, xmax, ymin, ymax)
+        b = (xmin, xmax, ymin, ymax)
+        bb = convert((w,h), b)
+        print(bb)
+        txt_outfile.write("0" + " " + " ".join([str(a) for a in bb]) + '\n')
 
-            im=Image.open(img_path)
-            w= int(im.size[0])
-            h= int(im.size[1])
+    # os.rename(txt_path,json_backup+json_name)
 
-            print(w, h)
-            print(xmin, xmax, ymin, ymax)
-            b = (xmin, xmax, ymin, ymax)
-            bb = convert((w,h), b)
-            print(bb)
-            txt_outfile.write(cls + " " + " ".join([str(a) for a in bb]) + '\n')
-
-    os.rename(txt_path,json_backup+json_name)	#move json file to backup folder
-  
